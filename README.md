@@ -1,2 +1,2 @@
-# roguelike-middlerarth
+# roguelike-middlearth
 
