@@ -1,10 +1,14 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class TopDownMovement : MonoBehaviour
 {
 	[Header("Movement")]
 	[SerializeField] private float moveSpeed = 5f;
+
+	[Header("World Reference")]
+	[SerializeField] private WorldGrid worldGrid;
 
 	private Rigidbody2D rb;
 	private Vector2 moveInput;     // raw input
@@ -17,30 +21,43 @@ public class TopDownMovement : MonoBehaviour
 		rb.freezeRotation = true;
 	}
 
+	private void Start()
+	{
+		if (worldGrid != null)
+		{
+			Vector2 spawnPos = worldGrid.GetSpawnWorldPosition();
+			rb.position = spawnPos;
+		}
+	}
 	private void Update()
 	{
-		// Keyboard / controller (old input system)
-		float x = Input.GetAxisRaw("Horizontal"); // A/D, Left/Right
-		float y = Input.GetAxisRaw("Vertical");   // W/S, Up/Down
+		Vector2 input = Vector2.zero;
 
-		moveInput = new Vector2(x, y);
+		if (Keyboard.current != null)
+		{
+			if (Keyboard.current.aKey.isPressed) input.x -= 1;
+			if (Keyboard.current.dKey.isPressed) input.x += 1;
+			if (Keyboard.current.sKey.isPressed) input.y -= 1;
+			if (Keyboard.current.wKey.isPressed) input.y += 1;
+		}
 
-		// Normalize so diagonal isn't faster (8-direction balanced)
+		moveInput = input;
 		moveVector = moveInput.sqrMagnitude > 1f ? moveInput.normalized : moveInput;
 	}
 
 	private void FixedUpdate()
 	{
-		Vector2 newPos = rb.position + moveVector * moveSpeed * Time.fixedDeltaTime;
-		rb.MovePosition(newPos);
+		if (moveVector == Vector2.zero) return;
+
+		Vector2 targetPos =
+			rb.position + moveVector * moveSpeed * Time.fixedDeltaTime;
+
+		if (worldGrid == null || worldGrid.IsWalkable(targetPos))
+		{
+			rb.MovePosition(targetPos);
+		}
 	}
 
-	// Optional: for mobile joystick later
-	public void SetMoveInput(Vector2 input)
-	{
-		moveInput = input;
-		moveVector = moveInput.sqrMagnitude > 1f ? moveInput.normalized : moveInput;
-	}
 
 	// Useful if you want facing direction for attacks/animations later
 	public Vector2 GetFacingDirection()
