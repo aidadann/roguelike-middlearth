@@ -19,6 +19,9 @@ public class TopDownMovement : MonoBehaviour
 		rb = GetComponent<Rigidbody2D>();
 		rb.gravityScale = 0f;
 		rb.freezeRotation = true;
+
+		// Recommended for top-down movement to reduce unwanted sliding
+		rb.linearDamping = 0f;
 	}
 
 	private void Start()
@@ -29,6 +32,7 @@ public class TopDownMovement : MonoBehaviour
 			rb.position = spawnPos;
 		}
 	}
+
 	private void Update()
 	{
 		Vector2 input = Vector2.zero;
@@ -47,6 +51,10 @@ public class TopDownMovement : MonoBehaviour
 
 	private void FixedUpdate()
 	{
+		// KEY FIX: cancel any physics shove/drift every tick
+		rb.linearVelocity = Vector2.zero;
+		rb.angularVelocity = 0f;
+
 		if (moveVector == Vector2.zero) return;
 
 		Vector2 targetPos =
@@ -57,7 +65,6 @@ public class TopDownMovement : MonoBehaviour
 			rb.MovePosition(targetPos);
 		}
 	}
-
 
 	// Useful if you want facing direction for attacks/animations later
 	public Vector2 GetFacingDirection()
