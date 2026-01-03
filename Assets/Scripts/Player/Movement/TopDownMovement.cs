@@ -25,7 +25,7 @@ public class TopDownMovement : MonoBehaviour
 	{
 		if (worldGrid != null)
 		{
-			Vector2 spawnPos = worldGrid.GetSpawnWorldPosition();
+			Vector2 spawnPos = worldGrid.GetSafeSpawnWorldPosition();
 			rb.position = spawnPos;
 		}
 	}

@@ -10,16 +10,19 @@ public class WorldGrid : MonoBehaviour
     }
 
     [Header("Grid Settings")]
-    [SerializeField] private int width = 20;
-    [SerializeField] private int height = 20;
-    [SerializeField] private float cellSize = 1f;
+    [SerializeField] public int width = 20;
+    [SerializeField] public int height = 20;
+    [SerializeField] public float cellSize = 1f;
 
     private TileType[,] tiles;
 
     private void Awake()
     {
         GenerateEmptyGrid();
-        AddTestWalls();
+        GenerateTestForest();
+
+        GetComponent<WorldTileRenderer>().Render(this);
+        //AddTestWalls();
     }
 
     private void GenerateEmptyGrid()
@@ -81,6 +84,14 @@ public class WorldGrid : MonoBehaviour
         return tiles[gridPos.x, gridPos.y] == TileType.Floor;
     }
 
+    public TileType GetTile(int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return TileType.Wall; // treat out-of-bounds as blocked
+
+        return tiles[x, y];
+    }
+
     public Vector2 GetSpawnWorldPosition()
     {
         // Simple deterministic spawn: bottom-left safe area
@@ -100,6 +111,32 @@ public class WorldGrid : MonoBehaviour
         }
 
         return GridToWorld(spawnGridPos);
+    }
+
+    public Vector2 GetSafeSpawnWorldPosition()
+    {
+        // Start near bottom-left and search outward
+        for (int radius = 0; radius < Mathf.Max(width, height); radius++)
+        {
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    Vector2Int gp = new Vector2Int(1 + dx, 1 + dy);
+
+                    if (!IsInBounds(gp))
+                        continue;
+
+                    if (tiles[gp.x, gp.y] == TileType.Floor)
+                    {
+                        return GridToWorld(gp);
+                    }
+                }
+            }
+        }
+
+        Debug.LogError("No safe spawn found!");
+        return GridToWorld(new Vector2Int(1, 1));
     }
 
     private void OnDrawGizmos()
@@ -125,4 +162,17 @@ public class WorldGrid : MonoBehaviour
             }
         }
     }
+    private void GenerateTestForest()
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                tiles[x, y] = (x == width / 2 || y == height / 2)
+                    ? TileType.Wall
+                    : TileType.Floor;
+            }
+        }
+    }
+
 }
