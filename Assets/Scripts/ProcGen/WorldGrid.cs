@@ -6,7 +6,8 @@ public class WorldGrid : MonoBehaviour
     {
         Empty,
         Floor,
-        Wall
+        Wall,
+        Decoration
     }
 
     [Header("Grid Settings")]
@@ -19,10 +20,8 @@ public class WorldGrid : MonoBehaviour
     private void Awake()
     {
         GenerateEmptyGrid();
-        GenerateTestForest();
-
+        GenerateForestPerlin();
         GetComponent<WorldTileRenderer>().Render(this);
-        //AddTestWalls();
     }
 
     private void GenerateEmptyGrid()
@@ -35,21 +34,6 @@ public class WorldGrid : MonoBehaviour
             {
                 tiles[x, y] = TileType.Floor;
             }
-        }
-    }
-
-    private void AddTestWalls()
-    {
-        // Vertical wall in the middle
-        for (int y = 5; y < height - 5; y++)
-        {
-            tiles[width / 2, y] = TileType.Wall;
-        }
-
-        // Horizontal wall near bottom
-        for (int x = 3; x < width - 3; x++)
-        {
-            tiles[x, 4] = TileType.Wall;
         }
     }
 
@@ -81,7 +65,9 @@ public class WorldGrid : MonoBehaviour
         if (!IsInBounds(gridPos))
             return false;
 
-        return tiles[gridPos.x, gridPos.y] == TileType.Floor;
+        TileType tile = tiles[gridPos.x, gridPos.y];
+
+        return tile == TileType.Floor || tile == TileType.Decoration;
     }
 
     public TileType GetTile(int x, int y)
@@ -90,6 +76,11 @@ public class WorldGrid : MonoBehaviour
             return TileType.Wall; // treat out-of-bounds as blocked
 
         return tiles[x, y];
+    }
+
+    public bool IsRiver(int x, int y)
+    {
+        return GetTile(x, y) == TileType.Wall;
     }
 
     public Vector2 GetSpawnWorldPosition()
@@ -162,15 +153,45 @@ public class WorldGrid : MonoBehaviour
             }
         }
     }
-    private void GenerateTestForest()
+    
+    [SerializeField] private float noiseScale = 0.1f;
+    [SerializeField, Range(0f, 1f)] private float treeThreshold = 0.60f;
+    [SerializeField, Range(0f, 1f)] private float riverThreshold = 0.30f;
+    [SerializeField] private int seed = 0;
+
+    private void GenerateForestPerlin()
     {
+        float offsetX = 0f;
+        float offsetY = 0f;
+
+        if (seed != 0)
+        {
+            System.Random rng = new System.Random(seed);
+            offsetX = rng.Next(-100000, 100000);
+            offsetY = rng.Next(-100000, 100000);
+        }
+
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
-                tiles[x, y] = (x == width / 2 || y == height / 2)
-                    ? TileType.Wall
-                    : TileType.Floor;
+                float nx = (x + offsetX) * noiseScale;
+                float ny = (y + offsetY) * noiseScale;
+
+                float n = Mathf.PerlinNoise(nx, ny);
+
+                if (n >= treeThreshold)
+                {
+                    tiles[x, y] = TileType.Decoration; // Trees (passable)
+                }
+                else if (n <= riverThreshold)
+                {
+                    tiles[x, y] = TileType.Wall; // River (blocked)
+                }
+                else
+                {
+                    tiles[x, y] = TileType.Floor; // Grass
+                }
             }
         }
     }
