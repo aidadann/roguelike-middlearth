@@ -14,11 +14,26 @@ public class WorldGrid : MonoBehaviour
     [SerializeField] public int width = 20;
     [SerializeField] public int height = 20;
     [SerializeField] public float cellSize = 1f;
+    [Header("Biome Settings")]
+    [SerializeField] private float biomeScale = 0.03f;
+    [SerializeField] private float sparseTreeBias = 0.10f; // fewer trees
+    [SerializeField] private float denseTreeBias = -0.10f; // more trees
+    [Header("River Settings")]
+    [SerializeField] private float riverNoiseScale = 0.08f;
+    [Header("World Seed")]
+    [SerializeField, Tooltip("0 = auto-generate on Play. Any other value = fixed world.")]
+    private int worldSeed = 0;
 
     private TileType[,] tiles;
 
     private void Awake()
     {
+        if (worldSeed == 0)
+        {
+            worldSeed = Random.Range(1, int.MaxValue);
+            Debug.Log($"[WorldGrid] Generated world seed: {worldSeed}");
+        }
+
         GenerateEmptyGrid();
         GenerateForestPerlin();
         GetComponent<WorldTileRenderer>().Render(this);
@@ -155,38 +170,64 @@ public class WorldGrid : MonoBehaviour
     }
     
     [SerializeField] private float noiseScale = 0.1f;
-    [SerializeField, Range(0f, 1f)] private float treeThreshold = 0.60f;
-    [SerializeField, Range(0f, 1f)] private float riverThreshold = 0.30f;
-    [SerializeField] private int seed = 0;
+    [SerializeField] private float treeThreshold;
+    [SerializeField] private float riverThreshold;
 
     private void GenerateForestPerlin()
     {
-        float offsetX = 0f;
-        float offsetY = 0f;
+        // --- Resolve seeds ---
+        var worldRng = new System.Random(worldSeed);
 
-        if (seed != 0)
-        {
-            System.Random rng = new System.Random(seed);
-            offsetX = rng.Next(-100000, 100000);
-            offsetY = rng.Next(-100000, 100000);
-        }
+        int terrainSeed = worldRng.Next();
+        int riverSeed   = worldRng.Next();
 
+
+        var terrainRng = new System.Random(terrainSeed);
+        var riverRng = new System.Random(riverSeed);
+
+        // --- Offsets ---
+        float terrainOffsetX = terrainRng.Next(-100000, 100000);
+        float terrainOffsetY = terrainRng.Next(-100000, 100000);
+
+        float riverOffsetX = riverRng.Next(-100000, 100000);
+        float riverOffsetY = riverRng.Next(-100000, 100000);
+
+        // --- Generation ---
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
-                float nx = (x + offsetX) * noiseScale;
-                float ny = (y + offsetY) * noiseScale;
+                // Base terrain noise (forest / grass)
+                float nx = (x + terrainOffsetX) * noiseScale;
+                float ny = (y + terrainOffsetY) * noiseScale;
+                float terrainNoise = Mathf.PerlinNoise(nx, ny);
 
-                float n = Mathf.PerlinNoise(nx, ny);
+                // Biome noise (density variation)
+                float bx = (x + terrainOffsetX) * biomeScale;
+                float by = (y + terrainOffsetY) * biomeScale;
+                float biomeNoise = Mathf.PerlinNoise(bx, by);
 
-                if (n >= treeThreshold)
+                float biomeBias = 0f;
+                if (biomeNoise < 0.4f)
+                    biomeBias = sparseTreeBias;
+                else if (biomeNoise > 0.6f)
+                    biomeBias = denseTreeBias;
+
+                float adjustedTreeThreshold = treeThreshold + biomeBias;
+
+                // River noise (separate field)
+                float rx = (x + riverOffsetX) * riverNoiseScale;
+                float ry = (y + riverOffsetY) * riverNoiseScale;
+                float riverNoise = Mathf.PerlinNoise(rx, ry);
+
+                // --- Final decision ---
+                if (riverNoise <= riverThreshold)
                 {
-                    tiles[x, y] = TileType.Decoration; // Trees (passable)
+                    tiles[x, y] = TileType.Wall; // River
                 }
-                else if (n <= riverThreshold)
+                else if (terrainNoise >= adjustedTreeThreshold)
                 {
-                    tiles[x, y] = TileType.Wall; // River (blocked)
+                    tiles[x, y] = TileType.Decoration; // Forest area
                 }
                 else
                 {
@@ -194,6 +235,13 @@ public class WorldGrid : MonoBehaviour
                 }
             }
         }
+    }
+    
+    [ContextMenu("Generate New World Seed")]
+    private void GenerateNewSeed()
+    {
+        worldSeed = Random.Range(1, int.MaxValue);
+        Debug.Log($"[WorldGrid] New world seed generated: {worldSeed}");
     }
 
 }

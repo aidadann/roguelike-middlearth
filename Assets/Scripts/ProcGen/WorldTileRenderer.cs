@@ -5,9 +5,12 @@ public class WorldTileRenderer : MonoBehaviour
 {
     [SerializeField] private Tilemap groundTilemap;
     [SerializeField] private Tilemap decorationTilemap;
+    [SerializeField] private Tilemap canopyTilemap;
     [SerializeField] private TileBase floorTile;
     [SerializeField] private TileBase wallTile;
     [SerializeField] private TileBase decorationTile;
+    [SerializeField] private TileBase treeTrunkTile;
+    [SerializeField] private TileBase treeCanopyTile;
 
     [Header("River Tiles")]
     [SerializeField] private TileBase riverCenter;
@@ -49,8 +52,33 @@ public class WorldTileRenderer : MonoBehaviour
                         break;
 
                     case WorldGrid.TileType.Decoration:
-                        decorationTilemap.SetTile(pos, decorationTile);
+                    {
+                        // 1. ALWAYS draw ground underneath
+                        groundTilemap.SetTile(pos, floorTile);
+
+                        // 2. Decide if THIS tile gets a trunk
+                        //    (sparse trunks, clustered naturally)
+                        bool placeTrunk = ((x + y) % 3 == 0);
+
+                        if (placeTrunk)
+                        {
+                            // Place trunk at this tile
+                            decorationTilemap.SetTile(pos, treeTrunkTile);
+
+                            // Place canopy ABOVE the trunk
+                            Vector3Int canopyPos = new Vector3Int(x, y + 1, 0);
+                            canopyTilemap.SetTile(canopyPos, treeCanopyTile);
+                        }
+                        else
+                        {
+                            // No trunk, but still part of forest → canopy only
+                            Vector3Int canopyPos = new Vector3Int(x, y, 0);
+                            canopyTilemap.SetTile(canopyPos, treeCanopyTile);
+                        }
+
                         break;
+                    }
+
                 }
             }
         }
@@ -71,6 +99,9 @@ public class WorldTileRenderer : MonoBehaviour
 
         // 4 neighbors → center
         if (count == 4)
+            return riverCenter;
+
+        if (count == 0)
             return riverCenter;
 
         // Straights
