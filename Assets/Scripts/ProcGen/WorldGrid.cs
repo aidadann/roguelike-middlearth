@@ -67,7 +67,7 @@ public class WorldGrid : MonoBehaviour
         );
     }
 
-    private bool IsInBounds(Vector2Int gridPos)
+    public bool IsInBounds(Vector2Int gridPos)
     {
         return gridPos.x >= 0 && gridPos.x < width &&
                gridPos.y >= 0 && gridPos.y < height;

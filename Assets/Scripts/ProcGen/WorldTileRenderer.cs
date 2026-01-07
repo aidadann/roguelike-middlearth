@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using System.Collections.Generic;
 
 public class WorldTileRenderer : MonoBehaviour
 {
@@ -32,57 +33,69 @@ public class WorldTileRenderer : MonoBehaviour
     {
         groundTilemap.ClearAllTiles();
         decorationTilemap.ClearAllTiles();
+        canopyTilemap.ClearAllTiles();
 
+        // Always render ground first
         for (int x = 0; x < grid.width; x++)
         {
             for (int y = 0; y < grid.height; y++)
             {
                 Vector3Int pos = new Vector3Int(x, y, 0);
-
-                var tileType = grid.GetTile(x, y);
-
-                // Always place ground
                 groundTilemap.SetTile(pos, floorTile);
+            }
+        }
 
-                // Overlay decoration or river
-                switch (tileType)
+        // Rivers stay unchanged
+        for (int x = 0; x < grid.width; x++)
+        {
+            for (int y = 0; y < grid.height; y++)
+            {
+                if (grid.GetTile(x, y) == WorldGrid.TileType.Wall)
                 {
-                    case WorldGrid.TileType.Wall:
-                        groundTilemap.SetTile(pos, GetRiverTile(grid, x, y));
-                        break;
-
-                    case WorldGrid.TileType.Decoration:
-                    {
-                        // 1. ALWAYS draw ground underneath
-                        groundTilemap.SetTile(pos, floorTile);
-
-                        // 2. Decide if THIS tile gets a trunk
-                        //    (sparse trunks, clustered naturally)
-                        bool placeTrunk = ((x + y) % 3 == 0);
-
-                        if (placeTrunk)
-                        {
-                            // Place trunk at this tile
-                            decorationTilemap.SetTile(pos, treeTrunkTile);
-
-                            // Place canopy ABOVE the trunk
-                            Vector3Int canopyPos = new Vector3Int(x, y + 1, 0);
-                            canopyTilemap.SetTile(canopyPos, treeCanopyTile);
-                        }
-                        else
-                        {
-                            // No trunk, but still part of forest → canopy only
-                            Vector3Int canopyPos = new Vector3Int(x, y, 0);
-                            canopyTilemap.SetTile(canopyPos, treeCanopyTile);
-                        }
-
-                        break;
-                    }
-
+                    groundTilemap.SetTile(
+                        new Vector3Int(x, y, 0),
+                        GetRiverTile(grid, x, y)
+                    );
                 }
             }
         }
+
+        // ---- FOREST PATCH TREES ----
+        var patches = FindForestPatches(grid);
+
+        foreach (var patch in patches)
+        {
+            // Find center of patch
+            Vector3 avg = Vector3.zero;
+            foreach (var p in patch)
+                avg += (Vector3)p;
+
+            avg /= patch.Count;
+            Vector3Int treePos = new Vector3Int(
+                Mathf.RoundToInt(avg.x),
+                Mathf.FloorToInt(avg.y),
+                0
+            );
+
+            // Place ONE tree
+            // Place ONE trunk
+            decorationTilemap.SetTile(treePos, treeTrunkTile);
+
+            // Place a wider canopy ABOVE the trunk
+            Vector3Int basePos = treePos + Vector3Int.up;
+
+            // Center canopy
+            canopyTilemap.SetTile(basePos, treeCanopyTile);
+
+            // Optional width (recommended)
+            canopyTilemap.SetTile(basePos + Vector3Int.left, treeCanopyTile);
+            canopyTilemap.SetTile(basePos + Vector3Int.right, treeCanopyTile);
+
+            // Optional extra depth (only if you want it bigger)
+            canopyTilemap.SetTile(basePos + Vector3Int.up, treeCanopyTile);
+        }
     }
+
 
     private TileBase GetRiverTile(WorldGrid grid, int x, int y)
     {
@@ -144,4 +157,60 @@ public class WorldTileRenderer : MonoBehaviour
 
         return riverCenter;
     }
+
+    public List<List<Vector3Int>> FindForestPatches(WorldGrid grid)
+    {
+        bool[,] visited = new bool[grid.width, grid.height];
+        var patches = new List<List<Vector3Int>>();
+
+        for (int x = 0; x < grid.width; x++)
+        {
+            for (int y = 0; y < grid.height; y++)
+            {
+                if (visited[x, y])
+                    continue;
+
+                if (grid.GetTile(x, y) != WorldGrid.TileType.Decoration)
+                    continue;
+
+                var patch = new List<Vector3Int>();
+                FloodFill(grid, x, y, visited, patch);
+
+                if (patch.Count > 0)
+                    patches.Add(patch);
+            }
+        }
+
+        return patches;
+    }
+
+    public void FloodFill(
+        WorldGrid grid,
+        int startX,
+        int startY,
+        bool[,] visited,
+        List<Vector3Int> patch)
+    {
+        var stack = new Stack<Vector2Int>();
+        stack.Push(new Vector2Int(startX, startY));
+
+        while (stack.Count > 0)
+        {
+            var p = stack.Pop();
+            if (!grid.IsInBounds(p) || visited[p.x, p.y])
+                continue;
+
+            if (grid.GetTile(p.x, p.y) != WorldGrid.TileType.Decoration)
+                continue;
+
+            visited[p.x, p.y] = true;
+            patch.Add(new Vector3Int(p.x, p.y, 0));
+
+            stack.Push(new Vector2Int(p.x + 1, p.y));
+            stack.Push(new Vector2Int(p.x - 1, p.y));
+            stack.Push(new Vector2Int(p.x, p.y + 1));
+            stack.Push(new Vector2Int(p.x, p.y - 1));
+        }
+    }
+
 }
