@@ -7,12 +7,13 @@ public class WorldGrid : MonoBehaviour
         Empty,
         Floor,
         Wall,
-        Decoration
+        Decoration,
+        CaveEntrance
     }
 
     [Header("Grid Settings")]
-    [SerializeField] public int width = 20;
-    [SerializeField] public int height = 20;
+    [SerializeField] public int width = 50;
+    [SerializeField] public int height = 50;
     [SerializeField] public float cellSize = 1f;
     [Header("Biome Settings")]
     [SerializeField] private float biomeScale = 0.03f;
@@ -22,7 +23,7 @@ public class WorldGrid : MonoBehaviour
     [SerializeField] private float riverNoiseScale = 0.08f;
     [Header("World Seed")]
     [SerializeField, Tooltip("0 = auto-generate on Play. Any other value = fixed world.")]
-    private int worldSeed = 0;
+    public int worldSeed = 0;
 
     private TileType[,] tiles;
 
@@ -36,6 +37,7 @@ public class WorldGrid : MonoBehaviour
 
         GenerateEmptyGrid();
         GenerateForestPerlin();
+        PlaceCaveEntrances();
         GetComponent<WorldTileRenderer>().Render(this);
     }
 
@@ -236,6 +238,30 @@ public class WorldGrid : MonoBehaviour
             }
         }
     }
+
+    [SerializeField] private int caveCount = 3;
+
+    private void PlaceCaveEntrances()
+    {
+        var rng = new System.Random(worldSeed + 999); // offset to avoid collision
+        int placed = 0;
+        int attempts = 0;
+
+        while (placed < caveCount && attempts < 5000)
+        {
+            attempts++;
+
+            int x = rng.Next(1, width - 1);
+            int y = rng.Next(1, height - 1);
+
+            if (tiles[x, y] != TileType.Floor)
+                continue;
+
+            tiles[x, y] = TileType.CaveEntrance;
+            placed++;
+        }
+    }
+
     
     [ContextMenu("Generate New World Seed")]
     private void GenerateNewSeed()

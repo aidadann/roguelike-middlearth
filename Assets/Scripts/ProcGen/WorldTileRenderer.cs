@@ -35,30 +35,42 @@ public class WorldTileRenderer : MonoBehaviour
         decorationTilemap.ClearAllTiles();
         canopyTilemap.ClearAllTiles();
 
-        // Always render ground first
         for (int x = 0; x < grid.width; x++)
         {
             for (int y = 0; y < grid.height; y++)
             {
                 Vector3Int pos = new Vector3Int(x, y, 0);
-                groundTilemap.SetTile(pos, floorTile);
+                var tileType = grid.GetTile(x, y);
+
+                if (tileType == WorldGrid.TileType.Wall)
+                    groundTilemap.SetTile(pos, GetRiverTile(grid, x, y));
+                else
+                    groundTilemap.SetTile(pos, floorTile);
             }
         }
-
-        // Rivers stay unchanged
         for (int x = 0; x < grid.width; x++)
         {
             for (int y = 0; y < grid.height; y++)
             {
-                if (grid.GetTile(x, y) == WorldGrid.TileType.Wall)
+                if (grid.GetTile(x, y) != WorldGrid.TileType.CaveEntrance)
+                    continue;
+
+                Vector3Int anchorPos = new Vector3Int(x, y, 0);
+
+                // Render stamp in ROW ORDER (bottom → top)
+                foreach (var part in caveEntranceStamp)
                 {
-                    groundTilemap.SetTile(
-                        new Vector3Int(x, y, 0),
-                        GetRiverTile(grid, x, y)
+                    Vector3Int stampPos = anchorPos + new Vector3Int(
+                        part.offset.x,
+                        part.offset.y,
+                        0
                     );
+
+                    groundTilemap.SetTile(stampPos, part.tile);
                 }
             }
         }
+
 
         // ---- FOREST PATCH TREES ----
         var patches = FindForestPatches(grid);
@@ -212,5 +224,15 @@ public class WorldTileRenderer : MonoBehaviour
             stack.Push(new Vector2Int(p.x, p.y - 1));
         }
     }
+    [System.Serializable]
+    public struct CaveEntranceStamp
+    {
+        public Vector2Int offset;
+        public TileBase tile;
+    }
+
+    [Header("Cave Entrance Stamp (Multi-tile)")]
+    [SerializeField] private CaveEntranceStamp[] caveEntranceStamp;
+
 
 }
