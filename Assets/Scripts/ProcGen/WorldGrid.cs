@@ -84,7 +84,7 @@ public class WorldGrid : MonoBehaviour
 
         TileType tile = tiles[gridPos.x, gridPos.y];
 
-        return tile == TileType.Floor || tile == TileType.Decoration;
+        return tile == TileType.Floor || tile == TileType.Decoration || tiles[gridPos.x, gridPos.y] == TileType.CaveEntrance;;
     }
 
     public TileType GetTile(int x, int y)
@@ -257,7 +257,7 @@ public class WorldGrid : MonoBehaviour
             if (tiles[x, y] != TileType.Floor)
                 continue;
 
-            tiles[x, y] = TileType.CaveEntrance;
+            tiles[x, y+1] = TileType.CaveEntrance;
             placed++;
         }
     }

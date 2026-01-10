@@ -9,10 +9,13 @@ public class TopDownMovement : MonoBehaviour
 
 	[Header("World Reference")]
 	[SerializeField] private WorldGrid worldGrid;
+	[SerializeField] private CaveManager caveManager;
 
 	private Rigidbody2D rb;
 	private Vector2 moveInput;     // raw input
 	private Vector2 moveVector;    // normalized direction
+	private Vector2 overworldReturnPosition;
+	private bool ignoreCaveEntrance = false;
 
 	private void Awake()
 	{
@@ -45,17 +48,33 @@ public class TopDownMovement : MonoBehaviour
 		moveVector = moveInput.sqrMagnitude > 1f ? moveInput.normalized : moveInput;
 	}
 
-	private void FixedUpdate()
-	{
-		if (moveVector == Vector2.zero) return;
+		private void FixedUpdate()
+		{
+			if (moveVector == Vector2.zero) return;
 
-		Vector2 targetPos =
-			rb.position + moveVector * moveSpeed * Time.fixedDeltaTime;
+			Vector2 targetPos =
+				rb.position + moveVector * moveSpeed * Time.fixedDeltaTime;
 
-		if (worldGrid == null || worldGrid.IsWalkable(targetPos))
+		bool canMove = false;
+
+		if (caveManager.CurrentState == GameWorldState.Cave)
+		{
+			canMove = caveManager.IsWalkable(targetPos);
+		}
+		else
+		{
+			canMove = worldGrid.IsWalkable(targetPos);
+		}
+
+		if (canMove)
 		{
 			rb.MovePosition(targetPos);
 		}
+
+
+		CheckCaveEntrance();
+		CheckCaveExit();
+		Debug.Log("Checking cave entrance");
 	}
 
 
@@ -64,5 +83,67 @@ public class TopDownMovement : MonoBehaviour
 	{
 		if (moveVector.sqrMagnitude > 0.0001f) return moveVector.normalized;
 		return Vector2.down; // default facing
+	}
+
+	private void CheckCaveEntrance()
+	{
+		if (ignoreCaveEntrance)
+			return;
+
+		Vector2Int gridPos = worldGrid.WorldToGrid(rb.position);
+
+		if (worldGrid.GetTile(gridPos.x, gridPos.y) == WorldGrid.TileType.CaveEntrance)
+		{
+			int caveSeed = worldGrid.worldSeed + gridPos.x * 1000 + gridPos.y;
+			EnterCave(caveSeed);
+		}
+	}
+
+
+	private void EnterCave(int caveSeed)
+	{
+		overworldReturnPosition = rb.position;
+		
+		rb.position += Vector2.up * 0.5f; 
+		
+		caveManager.EnterCave(caveSeed);
+
+		rb.position = caveManager.GetCaveSpawnPosition();
+
+		// OPTIONAL: disable overworld visuals
+		worldGrid.gameObject.SetActive(false);
+	}
+
+	private void CheckCaveExit()
+	{
+		if (caveManager.CurrentState != GameWorldState.Cave)
+			return;
+
+		Vector2Int gridPos = new Vector2Int(
+			Mathf.FloorToInt(rb.position.x),
+			Mathf.FloorToInt(rb.position.y)
+		);
+
+		if (caveManager.IsExitTile(gridPos))
+		{
+			ExitCave();
+		}
+	}
+	private void ExitCave()
+	{
+		caveManager.ExitCave();
+
+		rb.position = overworldReturnPosition;
+
+		// Prevent immediate re-entry
+		ignoreCaveEntrance = true;
+
+		// Re-enable entrance after short delay
+		Invoke(nameof(EnableCaveEntrance), 0.2f);
+	}
+
+	private void EnableCaveEntrance()
+	{
+		ignoreCaveEntrance = false;
 	}
 }

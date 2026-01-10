@@ -52,10 +52,11 @@ public class WorldTileRenderer : MonoBehaviour
         {
             for (int y = 0; y < grid.height; y++)
             {
-                if (grid.GetTile(x, y) != WorldGrid.TileType.CaveEntrance)
+                if (grid.GetTile(x, y) != WorldGrid.TileType.CaveEntrance || grid.GetTile(x, y - 1) == WorldGrid.TileType.CaveEntrance)
                     continue;
 
                 Vector3Int anchorPos = new Vector3Int(x, y, 0);
+
 
                 // Render stamp in ROW ORDER (bottom → top)
                 foreach (var part in caveEntranceStamp)
