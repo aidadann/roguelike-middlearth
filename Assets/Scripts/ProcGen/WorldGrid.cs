@@ -8,7 +8,8 @@ public class WorldGrid : MonoBehaviour
         Floor,
         Wall,
         Decoration,
-        CaveEntrance
+        CaveEntrance,
+        DungeonEntrance
     }
 
     [Header("Grid Settings")]
@@ -38,6 +39,7 @@ public class WorldGrid : MonoBehaviour
         GenerateEmptyGrid();
         GenerateForestPerlin();
         PlaceCaveEntrances();
+        PlaceDungeonEntrances();
         GetComponent<WorldTileRenderer>().Render(this);
     }
 
@@ -84,7 +86,10 @@ public class WorldGrid : MonoBehaviour
 
         TileType tile = tiles[gridPos.x, gridPos.y];
 
-        return tile == TileType.Floor || tile == TileType.Decoration || tiles[gridPos.x, gridPos.y] == TileType.CaveEntrance;;
+        return tile == TileType.Floor 
+        || tile == TileType.Decoration 
+        || tiles[gridPos.x, gridPos.y] == TileType.CaveEntrance
+        || tiles[gridPos.x, gridPos.y] == TileType.DungeonEntrance;
     }
 
     public TileType GetTile(int x, int y)
@@ -258,6 +263,28 @@ public class WorldGrid : MonoBehaviour
                 continue;
 
             tiles[x, y+1] = TileType.CaveEntrance;
+            placed++;
+        }
+    }
+
+    [SerializeField] private int dungeonCount = 2;
+    private void PlaceDungeonEntrances()
+    {
+        var rng = new System.Random(worldSeed + 5555); // offset to avoid collision
+        int placed = 0;
+        int attempts = 0;
+
+        while (placed < dungeonCount && attempts < 5000)
+        {
+            attempts++;
+
+            int x = rng.Next(1, width - 1);
+            int y = rng.Next(1, height - 1);
+
+            if (tiles[x, y] != TileType.Floor)
+                continue;
+
+            tiles[x, y+1] = TileType.DungeonEntrance;
             placed++;
         }
     }

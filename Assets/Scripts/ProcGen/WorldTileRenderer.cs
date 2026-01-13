@@ -48,29 +48,18 @@ public class WorldTileRenderer : MonoBehaviour
                     groundTilemap.SetTile(pos, floorTile);
             }
         }
-        for (int x = 0; x < grid.width; x++)
-        {
-            for (int y = 0; y < grid.height; y++)
-            {
-                if (grid.GetTile(x, y) != WorldGrid.TileType.CaveEntrance || grid.GetTile(x, y - 1) == WorldGrid.TileType.CaveEntrance)
-                    continue;
+        // --- STRUCTURE ENTRANCES ---
+        RenderEntranceStamp(
+            grid,
+            WorldGrid.TileType.CaveEntrance,
+            caveEntranceStamp
+        );
 
-                Vector3Int anchorPos = new Vector3Int(x, y, 0);
-
-
-                // Render stamp in ROW ORDER (bottom → top)
-                foreach (var part in caveEntranceStamp)
-                {
-                    Vector3Int stampPos = anchorPos + new Vector3Int(
-                        part.offset.x,
-                        part.offset.y,
-                        0
-                    );
-
-                    groundTilemap.SetTile(stampPos, part.tile);
-                }
-            }
-        }
+        RenderEntranceStamp(
+            grid,
+            WorldGrid.TileType.DungeonEntrance,
+            dungeonEntranceStamp
+        );
 
 
         // ---- FOREST PATCH TREES ----
@@ -226,14 +215,47 @@ public class WorldTileRenderer : MonoBehaviour
         }
     }
     [System.Serializable]
-    public struct CaveEntranceStamp
+    public struct EntranceStamp
     {
         public Vector2Int offset;
         public TileBase tile;
     }
 
     [Header("Cave Entrance Stamp (Multi-tile)")]
-    [SerializeField] private CaveEntranceStamp[] caveEntranceStamp;
+    [SerializeField] private EntranceStamp[] caveEntranceStamp;
 
+    [Header("Dungeon Entrance Stamp")]
+    [SerializeField] private EntranceStamp[] dungeonEntranceStamp;
 
+    private void RenderEntranceStamp(
+    WorldGrid grid,
+    WorldGrid.TileType entranceType,
+    EntranceStamp[] stamp)
+    {
+        for (int x = 0; x < grid.width; x++)
+        {
+            for (int y = 0; y < grid.height; y++)
+            {
+                // Only render anchor tiles (topmost tile)
+                if (grid.GetTile(x, y) != entranceType)
+                    continue;
+
+                if (grid.GetTile(x, y - 1) == entranceType)
+                    continue;
+
+                Vector3Int anchorPos = new Vector3Int(x, y, 0);
+
+                foreach (var part in stamp)
+                {
+                    Vector3Int stampPos = anchorPos + new Vector3Int(
+                        part.offset.x,
+                        part.offset.y,
+                        0
+                    );
+
+                    groundTilemap.SetTile(stampPos, part.tile);
+                }
+            }
+        }
+    }
 }

@@ -10,6 +10,7 @@ public class TopDownMovement : MonoBehaviour
 	[Header("World Reference")]
 	[SerializeField] private WorldGrid worldGrid;
 	[SerializeField] private CaveManager caveManager;
+	[SerializeField] private DungeonManager dungeonManager;
 
 	private Rigidbody2D rb;
 	private Vector2 moveInput;     // raw input
@@ -61,6 +62,10 @@ public class TopDownMovement : MonoBehaviour
 		{
 			canMove = caveManager.IsWalkable(targetPos);
 		}
+		else if (dungeonManager.CurrentState == GameWorldState.Dungeon)
+		{
+			canMove = dungeonManager.IsWalkable(targetPos);
+		}
 		else
 		{
 			canMove = worldGrid.IsWalkable(targetPos);
@@ -74,7 +79,8 @@ public class TopDownMovement : MonoBehaviour
 
 		CheckCaveEntrance();
 		CheckCaveExit();
-		Debug.Log("Checking cave entrance");
+		CheckDungeonEntrance();
+		CheckDungeonExit();
 	}
 
 
@@ -109,9 +115,6 @@ public class TopDownMovement : MonoBehaviour
 		caveManager.EnterCave(caveSeed);
 
 		rb.position = caveManager.GetCaveSpawnPosition();
-
-		// OPTIONAL: disable overworld visuals
-		worldGrid.gameObject.SetActive(false);
 	}
 
 	private void CheckCaveExit()
@@ -146,4 +149,64 @@ public class TopDownMovement : MonoBehaviour
 	{
 		ignoreCaveEntrance = false;
 	}
+
+	private void CheckDungeonEntrance()
+	{
+		if (ignoreDungeonEntrance)
+			return;
+
+		Vector2Int gridPos = worldGrid.WorldToGrid(rb.position);
+
+		if (worldGrid.GetTile(gridPos.x, gridPos.y) == WorldGrid.TileType.DungeonEntrance)
+		{
+			int dungeonSeed = worldGrid.worldSeed + gridPos.x * 2000 + gridPos.y;
+			EnterDungeon(dungeonSeed);
+		}
+	}
+
+	private void EnterDungeon(int dungeonSeed)
+	{
+		overworldReturnPosition = rb.position;
+		
+		rb.position += Vector2.up * 0.5f; 
+		
+		dungeonManager.EnterDungeon(dungeonSeed);
+
+		rb.position = dungeonManager.GetDungeonSpawnPosition();
+	}
+
+	private void CheckDungeonExit()
+	{
+		if (dungeonManager.CurrentState != GameWorldState.Dungeon)
+			return;
+
+		Vector2Int gridPos = new Vector2Int(
+			Mathf.FloorToInt(rb.position.x),
+			Mathf.FloorToInt(rb.position.y)
+		);
+
+		if (dungeonManager.IsExit(gridPos))
+		{
+			ExitDungeon();
+		}
+	}
+	private void ExitDungeon()
+	{
+		dungeonManager.ExitDungeon();
+
+		rb.position = overworldReturnPosition;
+
+		// Prevent immediate re-entry
+		ignoreDungeonEntrance = true;
+
+		// Re-enable entrance after short delay
+		Invoke(nameof(EnableDungeonEntrance), 0.2f);
+	}
+
+	private bool ignoreDungeonEntrance = false;
+	private void EnableDungeonEntrance()
+	{
+		ignoreDungeonEntrance = false;
+	}
+
 }

@@ -1,5 +1,6 @@
 public enum GameWorldState
 {
     Overworld,
-    Cave
+    Cave,
+    Dungeon
 }
