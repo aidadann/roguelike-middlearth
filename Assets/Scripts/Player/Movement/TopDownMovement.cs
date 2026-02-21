@@ -60,6 +60,8 @@ public class TopDownMovement : MonoBehaviour
 		rb.angularVelocity = 0f;
 
 		if (moveVector == Vector2.zero) return;
+		Vector2 targetPos =
+        rb.position + moveVector * moveSpeed * Time.fixedDeltaTime;
 
 		bool canMove = false;
 
